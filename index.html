@@ -1474,7 +1474,7 @@ function initializeDramas() {
             const d = DRAMAS[i];
             const card = document.createElement('div');
             card.className = 'drama-card';
-            card.innerHTML = `<div class="drama-image-container"><div class="placeholder-img">Loading...</div><div class="image-overlay"><div class="watch-text">Watch Now</div></div></div><div class="drama-info"><div class="drama-title">${d.title}</div><div class="drama-episodes">${d.category}</div></div>`;
+            card.innerHTML = `<div class="drama-image-container"><div class="placeholder-img">Loading...</div><div class="image-overlay"><div class="watch-text">Watch Now</div></div></div><div class="drama-info"><div class="drama-title">${d.title}</div><div class="drama-episodes">${d.description}</div></div>`;
             card.onclick = () => openDrama(i);
             fetchDramaThumbnail(d.playlistId, card);
             grid.appendChild(card);
@@ -1542,13 +1542,21 @@ function sortEpisodes(list) {
     return list;
 }
 
+// Updated Function to Filter Private Videos
 async function fetchAllVideos(pid) {
     let all = [], token = null;
     try {
         do {
             const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${pid}&key=${API_KEY}${token ? `&pageToken=${token}` : ''}`);
             const data = await res.json();
-            if (data.items) all = all.concat(data.items);
+            if (data.items) {
+                // Filtering out Private and Deleted videos
+                const filtered = data.items.filter(item => {
+                    const title = item.snippet.title.toLowerCase();
+                    return title !== 'private video' && title !== 'deleted video';
+                });
+                all = all.concat(filtered);
+            }
             token = data.nextPageToken;
         } while (token);
     } catch (e) { console.error(e); }
@@ -1591,14 +1599,13 @@ function openPlayer(idx) {
     
     document.getElementById('playerBox').style.display = 'block';
     document.getElementById('bufferingScreen').style.display = 'flex';
-    document.getElementById('ytWrapper').style.opacity = '0'; // Hide video until it's ready
+    document.getElementById('ytWrapper').style.opacity = '0';
     document.body.classList.add('player-open');
     
     if (player?.loadVideoById) {
         player.loadVideoById(vId);
     }
     
-    // SAFETY TIMER: Agar 4 seconds tak API respond na kare (Ads ki wajah se), loader khud hata do
     setTimeout(forceHideLoader, 4000);
     showControls();
 }
@@ -1628,8 +1635,6 @@ function onYouTubeIframeAPIReady() {
 function onStateChange(event) {
     const loader = document.getElementById('bufferingScreen');
     const wrapper = document.getElementById('ytWrapper');
-
-    // Ads detect karne ki koshish (ho sakta hai hamesha kaam na kare)
     const isAdPlaying = (player && typeof player.getAdState === 'function' && player.getAdState() === 1);
 
     if (event.data === YT.PlayerState.PLAYING) {
@@ -1641,7 +1646,6 @@ function onStateChange(event) {
     } 
     else if (event.data === YT.PlayerState.BUFFERING) {
         if (isAdPlaying) {
-            // Agar ad buffering ho rahi hai to video dikhao loader nahi
             loader.style.display = 'none';
             wrapper.style.opacity = '1';
         } else {
@@ -1654,8 +1658,7 @@ function onStateChange(event) {
         document.getElementById('playIcon').innerText = '▶';
         showControls(); 
     }
-    else if (event.data === -1) { // Unstarted state (अक्सर ads के वक्त आती है)
-        // Video start hone wala hai, opacity on kar do taake ad dikhe
+    else if (event.data === -1) {
         wrapper.style.opacity = '1';
         setTimeout(forceHideLoader, 1500);
     }
@@ -1677,7 +1680,6 @@ function updateProgressBar() {
     }
 }
 
-// Controls logic (Existing)
 function toggleControls(e) {
     if (e.target.closest('.player-controls') || e.target.closest('.p-bar-container')) return;
     const el = document.getElementById('playerArea');
