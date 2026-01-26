@@ -342,7 +342,7 @@ body { background-color: var(--dark-bg); color: white; overflow-x: hidden; }
     align-items: center;
     gap: 8px;
     transition: all 0.3s ease;
-    min-width: 150px;
+    min-width: 120px;
     justify-content: center;
 }
 
@@ -356,15 +356,6 @@ body { background-color: var(--dark-bg); color: white; overflow-x: hidden; }
     cursor: not-allowed;
 }
 
-.pagination-btn.see-more {
-    background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
-}
-
-.pagination-btn.see-more:hover:not(:disabled) {
-    background: linear-gradient(45deg, var(--neon-purple), var(--neon-blue));
-    box-shadow: 0 5px 15px rgba(0, 243, 255, 0.5);
-}
-
 .page-info {
     color: var(--neon-blue);
     font-size: 14px;
@@ -372,8 +363,6 @@ body { background-color: var(--dark-bg); color: white; overflow-x: hidden; }
     padding: 8px 20px;
     border-radius: 20px;
     border: 1px solid var(--neon-blue);
-    min-width: 250px;
-    text-align: center;
 }
 
 /* === EPISODES SECTION === */
@@ -1249,7 +1238,7 @@ body.player-open .episodes-container {
             <div class="loader-ring"></div>
             <div class="loader-ring"></div>
         </div>
-        <div class="loading-status-heading" id="loaderTitle">AAN TV HD Dramas</div>
+        <div class="loading-status-heading" id="loaderTitle">GREEN TV HD Dramas</div>
         <div class="loading-sub-text" id="loaderText">Please wait<span class="loading-dots">...</span></div>
     </div>
 
@@ -1345,8 +1334,8 @@ body.player-open .episodes-container {
                     ← Previous
                 </button>
                 <div class="page-info" id="episodePageInfo">Page 1 of 1</div>
-                <button class="pagination-btn see-more" id="episodeNextBtn" onclick="changeEpisodePage(1)">
-                    Load More →
+                <button class="pagination-btn" id="episodeNextBtn" onclick="changeEpisodePage(1)">
+                    Next →
                 </button>
             </div>
         </div>
@@ -1356,12 +1345,11 @@ body.player-open .episodes-container {
         </div>
     </div>
 
-<script>
+    <script>
     // Configuration
     const API_KEY = 'AIzaSyACxqw-OnpXUZFv7ym_PTiH4QkdX_KRsN4';
     const DEFAULT_THUMBNAIL = "https://images.pexels.com/photos/713149/pexels-photo-713149.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1";
     const ITEMS_PER_PAGE = 30;
-    const EPISODES_PER_PAGE = 30;
     
     const DRAMAS = [
         { title: "Bandhan", playlistId: 'PLSHkL2RDCWMwXSXoJFXY7B7Sg3693cNDB', description: "TV Serial" },
@@ -1389,68 +1377,94 @@ body.player-open .episodes-container {
         { title: "Meri Guriya", playlistId: 'PLSHkL2RDCWMxy9lAL5yqfigrSeIT0_Kf2', description: "TV Serial" }
     ];
 
-    let player, currentIdx = 0, hideTimeout;
-    let videoList = []; 
-    let currentDramaIndex = -1;
-    let isBuffering = false;
-    let isInEpisodesView = false;
-    let dramaCurrentPage = 1, dramaTotalPages = 1;
-    let episodeCurrentPage = 1, episodeTotalPages = 1;
-    let loaderTimeout;
+// --- Variables ---
+let player, currentIdx = 0, hideTimeout;
+let videoList = []; 
+let currentDramaIndex = -1;
+let isBuffering = false;
+let isInEpisodesView = false;
+let dramaCurrentPage = 1, dramaTotalPages = 1;
+let episodeCurrentPage = 1, episodeTotalPages = 1;
+let loaderTimeout;
 
-    window.onload = () => {
-        setupBrowserHistory();
-        initializeLoader();
-        const tag = document.createElement('script');
-        tag.src = "https://www.youtube.com/iframe_api";
-        document.head.appendChild(tag);
-        
-        const playerArea = document.getElementById('playerArea');
-        if(playerArea) playerArea.addEventListener('click', handleUIInteraction);
-    };
+// --- Initialization & Navigation ---
+window.onload = () => {
+    setupBrowserHistory();
+    initializeLoader();
+    const tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(tag);
+};
 
-    // --- UI FUNCTIONS ---
-    function setupBrowserHistory() {
-        history.replaceState({ page: 'dramas' }, '', window.location.pathname);
-        window.addEventListener('popstate', (e) => {
-            if (e.state?.page === 'dramas' && isInEpisodesView) goBackToDramas();
-            else if (e.state?.page === 'episodes' && !isInEpisodesView && currentDramaIndex >= 0) openDrama(currentDramaIndex, true);
-        });
+function setupBrowserHistory() {
+    history.replaceState({ page: 'dramas' }, '', window.location.pathname);
+    window.addEventListener('popstate', (e) => {
+        if (e.state?.page === 'dramas' && isInEpisodesView) goBackToDramas();
+        else if (e.state?.page === 'episodes' && !isInEpisodesView && currentDramaIndex >= 0) openDrama(currentDramaIndex, true);
+    });
+}
+
+function updatePageTitle(title = 'DRAMA HUB') { document.title = title + ' - DRAMA HUB'; }
+
+// --- LOADER FUNCTIONS ---
+function initializeLoader() {
+    updateLoaderText('Loading Dramas');
+    setTimeout(() => {
+        initializeDramas();
+        hideFullScreenLoader();
+    }, 1500);
+}
+
+function updateLoaderText(text) {
+    const el = document.getElementById('loaderText');
+    if(el) el.innerHTML = `${text}<span class="loading-dots">...</span>`;
+}
+
+function showFullScreenLoader(text = 'Loading') {
+    clearTimeout(loaderTimeout);
+    document.getElementById('fullScreenLoader').style.display = 'flex';
+    updateLoaderText(text);
+}
+
+function hideFullScreenLoader() {
+    loaderTimeout = setTimeout(() => {
+        document.getElementById('fullScreenLoader').style.display = 'none';
+    }, 500);
+}
+
+// --- Loading Skeletons ---
+function createDramaLoadingSkeleton(count = 6) {
+    const grid = document.getElementById('dramaLoadingGrid');
+    if(!grid) return;
+    grid.innerHTML = '';
+    for (let i = 0; i < count; i++) {
+        const card = document.createElement('div');
+        card.className = 'loading-card';
+        card.innerHTML = `<div class="loading-image-container"></div><div class="loading-info"><div class="loading-title"></div><div class="loading-subtitle"></div></div>`;
+        grid.appendChild(card);
     }
+}
 
-    function updatePageTitle(title = 'DRAMA HUB') { document.title = title + ' - DRAMA HUB'; }
-
-    function initializeLoader() {
-        updateLoaderText('Loading Dramas');
-        setTimeout(() => {
-            initializeDramas();
-            hideFullScreenLoader();
-        }, 1500);
+function createEpisodeLoadingSkeleton(count = 8) {
+    const grid = document.getElementById('episodeLoadingGrid');
+    if(!grid) return;
+    grid.innerHTML = '';
+    for (let i = 0; i < count; i++) {
+        const card = document.createElement('div');
+        card.className = 'loading-card';
+        card.innerHTML = `<div class="loading-image-container" style="height: 120px; min-height: 120px;"></div><div class="loading-info"><div class="loading-title"></div><div class="loading-subtitle"></div></div>`;
+        grid.appendChild(card);
     }
+}
 
-    function updateLoaderText(text) {
-        const el = document.getElementById('loaderText');
-        if(el) el.innerHTML = `${text}<span class="loading-dots">...</span>`;
-    }
-
-    function showFullScreenLoader(text = 'Loading') {
-        clearTimeout(loaderTimeout);
-        const loader = document.getElementById('fullScreenLoader');
-        if(loader) loader.style.display = 'flex';
-        updateLoaderText(text);
-    }
-
-    function hideFullScreenLoader() {
-        loaderTimeout = setTimeout(() => {
-            const loader = document.getElementById('fullScreenLoader');
-            if(loader) loader.style.display = 'none';
-        }, 500);
-    }
-
-    // --- DRAMA & EPISODE LISTING ---
-    function initializeDramas() {
+// --- Drama Logic ---
+function initializeDramas() {
+    createDramaLoadingSkeleton();
+    document.getElementById('dramaLoadingSection').style.display = 'block';
+    document.getElementById('dramaSection').style.display = 'none';
+    
+    setTimeout(() => {
         const grid = document.getElementById('dramaGrid');
-        if(!grid) return;
         grid.innerHTML = '';
         dramaTotalPages = Math.ceil(DRAMAS.length / ITEMS_PER_PAGE);
         const start = (dramaCurrentPage - 1) * ITEMS_PER_PAGE;
@@ -1460,267 +1474,321 @@ body.player-open .episodes-container {
             const d = DRAMAS[i];
             const card = document.createElement('div');
             card.className = 'drama-card';
-            card.innerHTML = `<div class="drama-image-container"><div class="placeholder-img">Loading...</div><div class="image-overlay"><div class="watch-text">Watch Now</div></div></div><div class="drama-info"><div class="drama-title">${d.title}</div><div class="drama-episodes">${d.description}</div></div>`;
+            card.innerHTML = `<div class="drama-image-container"><div class="placeholder-img">Loading...</div><div class="image-overlay"><div class="watch-text">Watch Now</div></div></div><div class="drama-info"><div class="drama-title">${d.title}</div><div class="drama-episodes">${d.category}</div></div>`;
             card.onclick = () => openDrama(i);
             fetchDramaThumbnail(d.playlistId, card);
             grid.appendChild(card);
         }
+        
+        document.getElementById('dramaLoadingSection').style.display = 'none';
         document.getElementById('dramaSection').style.display = 'block';
         updateDramaPagination();
-    }
+    }, 1000);
+}
 
-    async function fetchDramaThumbnail(pid, card) {
-        try {
-            const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,status&maxResults=5&playlistId=${pid}&key=${API_KEY}`);
-            const data = await res.json();
-            if (data.items?.length > 0) {
-                const firstPublic = data.items.find(item => item.status.privacyStatus !== 'private');
-                const thumb = (firstPublic || data.items[0]).snippet.thumbnails.high?.url || DEFAULT_THUMBNAIL;
-                card.querySelector('.placeholder-img').innerHTML = `<img src="${thumb}" class="drama-image" onerror="this.src='${DEFAULT_THUMBNAIL}'">`;
-            }
-        } catch (e) { console.error(e); }
-    }
+async function fetchDramaThumbnail(pid, card) {
+    try {
+        const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=1&playlistId=${pid}&key=${API_KEY}`);
+        const data = await res.json();
+        if (data.items?.[0]) {
+            const thumb = data.items[0].snippet.thumbnails.high?.url || DEFAULT_THUMBNAIL;
+            card.querySelector('.placeholder-img').innerHTML = `<img src="${thumb}" class="drama-image" onerror="this.src='${DEFAULT_THUMBNAIL}'">`;
+        }
+    } catch (e) { console.error(e); }
+}
 
-    async function openDrama(idx, fromHist = false) {
-        currentDramaIndex = idx;
-        const d = DRAMAS[idx];
-        updatePageTitle(d.title);
-        showFullScreenLoader(`Loading ${d.title}`);
-        document.getElementById('dramaSection').style.display = 'none';
-        document.getElementById('backButton').style.display = 'inline-flex';
-        document.getElementById('episodesContainer').style.display = 'block';
-        document.getElementById('dramaName').textContent = d.title;
-        isInEpisodesView = true;
-        if (!fromHist) history.pushState({ page: 'episodes', dramaIndex: idx }, '', `#${d.title.replace(/\s+/g, '-').toLowerCase()}`);
+// --- Episode Logic ---
+async function openDrama(idx, fromHist = false) {
+    currentDramaIndex = idx;
+    const d = DRAMAS[idx];
+    updatePageTitle(d.title);
+    showFullScreenLoader(`Loading ${d.title} Episodes`);
+    
+    document.getElementById('dramaSection').style.display = 'none';
+    document.getElementById('backButton').style.display = 'inline-flex';
+    document.getElementById('episodesContainer').style.display = 'block';
+    document.getElementById('dramaName').textContent = d.title;
+    isInEpisodesView = true;
+    
+    createEpisodeLoadingSkeleton();
+    document.getElementById('episodeLoadingSection').style.display = 'block';
+    document.getElementById('episodeGrid').style.display = 'none';
+
+    if (!fromHist) history.pushState({ page: 'episodes', dramaIndex: idx }, '', `#${d.title.replace(/\s+/g, '-').toLowerCase()}`);
+    
+    try {
         const all = await fetchAllVideos(d.playlistId);
         videoList = sortEpisodes(all);
         document.getElementById('episodeCount').textContent = `${videoList.length} Episodes`;
-        episodeTotalPages = Math.ceil(videoList.length / EPISODES_PER_PAGE);
-        displayEpisodes(1);
+        episodeTotalPages = Math.ceil(videoList.length / ITEMS_PER_PAGE);
+        
         hideFullScreenLoader();
-    }
-
-    async function fetchAllVideos(pid) {
-        let all = [], token = null;
-        try {
-            do {
-                const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,status&maxResults=50&playlistId=${pid}&key=${API_KEY}${token ? `&pageToken=${token}` : ''}`);
-                const data = await res.json();
-                if (data.items) {
-                    const publicOnly = data.items.filter(item => item.status.privacyStatus !== 'private');
-                    all = all.concat(publicOnly);
-                }
-                token = data.nextPageToken;
-            } while (token);
-        } catch (e) { console.error(e); }
-        return all;
-    }
-
-    function displayEpisodes(page) {
-        episodeCurrentPage = page;
+        document.getElementById('episodeLoadingSection').style.display = 'none';
+        document.getElementById('episodeGrid').style.display = 'grid';
+        displayEpisodes(1);
+    } catch (error) {
+        hideFullScreenLoader();
+        document.getElementById('episodeLoadingSection').style.display = 'none';
         const grid = document.getElementById('episodeGrid');
-        grid.innerHTML = '';
-        const start = (page - 1) * EPISODES_PER_PAGE;
-        const end = Math.min(start + EPISODES_PER_PAGE, videoList.length);
-        for (let i = start; i < end; i++) {
-            const v = videoList[i];
-            const card = document.createElement('div');
-            card.className = 'ep-card';
-            card.innerHTML = `<div class="ep-inner"><div class="ep-upper"><img src="${v.snippet.thumbnails?.high?.url || DEFAULT_THUMBNAIL}" loading="lazy"></div><div class="ep-lower"><div class="ep-title">${v.snippet.title}</div></div></div>`;
-            card.onclick = () => openPlayer(i);
-            grid.appendChild(card);
-        }
-        updateEpisodePagination();
+        grid.style.display = 'block';
+        grid.innerHTML = `<div class="error-message">Failed to load episodes. Please try again.</div>`;
     }
+}
 
-    // --- PLAYER LOGIC ---
-    function onYouTubeIframeAPIReady() {
-        player = new YT.Player('youtube-player', {
-            height: '100%', width: '100%',
-            playerVars: { 'autoplay': 1, 'controls': 0, 'playsinline': 1, 'rel': 0, 'modestbranding': 1, 'enablejsapi': 1 },
-            events: { 
-                'onStateChange': onStateChange,
-                'onReady': () => { setInterval(updateProgressBar, 500); }
-            }
-        });
+function sortEpisodes(list) {
+    if (list.length < 2) return list;
+    const getNum = (t) => { const m = t.match(/\d+/); return m ? parseInt(m[0]) : 0; };
+    if (getNum(list[0].snippet.title) > getNum(list[list.length-1].snippet.title)) return list.reverse();
+    return list;
+}
+
+async function fetchAllVideos(pid) {
+    let all = [], token = null;
+    try {
+        do {
+            const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${pid}&key=${API_KEY}${token ? `&pageToken=${token}` : ''}`);
+            const data = await res.json();
+            if (data.items) all = all.concat(data.items);
+            token = data.nextPageToken;
+        } while (token);
+    } catch (e) { console.error(e); }
+    return all;
+}
+
+function displayEpisodes(page) {
+    episodeCurrentPage = page;
+    const grid = document.getElementById('episodeGrid');
+    grid.innerHTML = '';
+    const start = (page - 1) * ITEMS_PER_PAGE;
+    const end = Math.min(start + ITEMS_PER_PAGE, videoList.length);
+
+    for (let i = start; i < end; i++) {
+        const v = videoList[i];
+        const card = document.createElement('div');
+        card.className = 'ep-card';
+        card.innerHTML = `<div class="ep-inner"><div class="ep-upper"><img src="${v.snippet.thumbnails?.high?.url || DEFAULT_THUMBNAIL}" loading="lazy"></div><div class="ep-lower"><div class="ep-title">${v.snippet.title}</div></div></div>`;
+        card.onclick = () => openPlayer(i);
+        grid.appendChild(card);
     }
+    updateEpisodePagination();
+}
 
-    function onStateChange(event) {
-        const loader = document.getElementById('bufferingScreen');
-        const wrapper = document.getElementById('ytWrapper');
-        const playerArea = document.getElementById('playerArea');
-        const loaderText = document.getElementById('loaderText');
-        const isAd = player?.getAdState && player.getAdState() !== -1;
+function goBackToDramas() {
+    document.getElementById('episodesContainer').style.display = 'none';
+    document.getElementById('backButton').style.display = 'none';
+    document.getElementById('dramaSection').style.display = 'block';
+    closePlayer();
+    updatePageTitle();
+    isInEpisodesView = false;
+    history.pushState({ page: 'dramas' }, '', window.location.pathname);
+}
 
-        if (isAd) {
-            playerArea.classList.add('show-ui');
-            if(loaderText) loaderText.innerText = "Please wait to stream (Ad playing)";
-            loader.style.display = 'none'; 
-            wrapper.style.opacity = '1';
-            return;
+// --- Player Logic ---
+function openPlayer(idx) {
+    if (!videoList[idx]) return;
+    currentIdx = idx;
+    const vId = videoList[idx].snippet.resourceId.videoId;
+    
+    document.getElementById('playerBox').style.display = 'block';
+    document.getElementById('bufferingScreen').style.display = 'flex';
+    document.getElementById('ytWrapper').style.opacity = '0'; // Hide video until it's ready
+    document.body.classList.add('player-open');
+    
+    if (player?.loadVideoById) {
+        player.loadVideoById(vId);
+    }
+    
+    // SAFETY TIMER: Agar 4 seconds tak API respond na kare (Ads ki wajah se), loader khud hata do
+    setTimeout(forceHideLoader, 4000);
+    showControls();
+}
+
+function forceHideLoader() {
+    const loader = document.getElementById('bufferingScreen');
+    const wrapper = document.getElementById('ytWrapper');
+    if(loader.style.display !== 'none') {
+        loader.style.display = 'none';
+        wrapper.style.opacity = '1';
+        isBuffering = false;
+    }
+}
+
+// --- YouTube API Events ---
+function onYouTubeIframeAPIReady() {
+    player = new YT.Player('youtube-player', {
+        height: '100%', width: '100%',
+        playerVars: { 'autoplay': 1, 'controls': 0, 'playsinline': 1, 'rel': 0, 'modestbranding': 1, 'enablejsapi': 1 },
+        events: { 
+            'onStateChange': onStateChange,
+            'onReady': () => { setInterval(updateProgressBar, 500); }
         }
+    });
+}
 
-        if (event.data === YT.PlayerState.PLAYING) {
-            isBuffering = false;
+function onStateChange(event) {
+    const loader = document.getElementById('bufferingScreen');
+    const wrapper = document.getElementById('ytWrapper');
+
+    // Ads detect karne ki koshish (ho sakta hai hamesha kaam na kare)
+    const isAdPlaying = (player && typeof player.getAdState === 'function' && player.getAdState() === 1);
+
+    if (event.data === YT.PlayerState.PLAYING) {
+        isBuffering = false;
+        loader.style.display = 'none';
+        wrapper.style.opacity = '1';
+        document.getElementById('playIcon').innerText = '||';
+        showControls();
+    } 
+    else if (event.data === YT.PlayerState.BUFFERING) {
+        if (isAdPlaying) {
+            // Agar ad buffering ho rahi hai to video dikhao loader nahi
             loader.style.display = 'none';
             wrapper.style.opacity = '1';
-            document.getElementById('playIcon').innerText = '||';
-            scheduleHide(); 
-        } 
-        else if (event.data === YT.PlayerState.BUFFERING) {
+        } else {
             isBuffering = true;
             loader.style.display = 'flex';
-            if(loaderText) loaderText.innerText = "Please wait to stream";
-        } 
-        else if (event.data === YT.PlayerState.PAUSED) {
-            isBuffering = false;
-            document.getElementById('playIcon').innerText = '▶';
-            playerArea.classList.add('show-ui');
+        }
+    } 
+    else if (event.data === YT.PlayerState.PAUSED) {
+        isBuffering = false;
+        document.getElementById('playIcon').innerText = '▶';
+        showControls(); 
+    }
+    else if (event.data === -1) { // Unstarted state (अक्सर ads के वक्त आती है)
+        // Video start hone wala hai, opacity on kar do taake ad dikhe
+        wrapper.style.opacity = '1';
+        setTimeout(forceHideLoader, 1500);
+    }
+}
+
+function updateProgressBar() {
+    if (player?.getCurrentTime && player?.getDuration) {
+        const isAdPlaying = (player && typeof player.getAdState === 'function' && player.getAdState() === 1);
+        if (isAdPlaying) {
+            forceHideLoader();
+            return;
+        }
+        const curr = player.getCurrentTime(), dur = player.getDuration();
+        if (dur > 0) {
+            document.getElementById('pFill').style.width = (curr/dur*100) + '%';
+            document.getElementById('currTime').innerText = formatTime(curr);
+            document.getElementById('totalTime').innerText = formatTime(dur);
         }
     }
+}
 
-    function handleUIInteraction(e) {
-        if (e.target.closest('.controls') || e.target.closest('.p-bar')) return;
-        const el = document.getElementById('playerArea');
-        const isAd = player?.getAdState && player.getAdState() !== -1;
-        clearTimeout(hideTimeout);
-        if (el.classList.contains('show-ui')) {
-            if (!isAd) el.classList.remove('show-ui');
-        } else {
-            el.classList.add('show-ui');
-            scheduleHide();
-        }
+// Controls logic (Existing)
+function toggleControls(e) {
+    if (e.target.closest('.player-controls') || e.target.closest('.p-bar-container')) return;
+    const el = document.getElementById('playerArea');
+    clearTimeout(hideTimeout);
+    if (el.classList.contains('show-ui')) el.classList.remove('show-ui');
+    else showControls();
+}
+
+function showControls() {
+    const el = document.getElementById('playerArea');
+    clearTimeout(hideTimeout);
+    el.classList.add('show-ui');
+    if (!isBuffering && player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+        hideTimeout = setTimeout(() => el.classList.remove('show-ui'), 3000);
     }
+}
 
-    function scheduleHide() {
-        const el = document.getElementById('playerArea');
-        const isAd = player?.getAdState && player.getAdState() !== -1;
-        clearTimeout(hideTimeout);
-        if (!isBuffering && !isAd && player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-            hideTimeout = setTimeout(() => { el.classList.remove('show-ui'); }, 3000);
-        }
+function playPause() {
+    if (!player) return;
+    player.getPlayerState() === YT.PlayerState.PLAYING ? player.pauseVideo() : player.playVideo();
+    showControls();
+}
+
+function skip(s) {
+    if (player?.getCurrentTime) {
+        player.seekTo(player.getCurrentTime() + s, true);
+        showControls();
     }
+}
 
-    // --- FULLSCREEN LOGIC (FIXED) ---
-    function toggleFullscreen() {
-        const el = document.getElementById('playerArea');
-        if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
-            if (el.requestFullscreen) el.requestFullscreen();
-            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-            else if (el.msRequestFullscreen) el.msRequestFullscreen();
-        } else {
-            if (document.exitFullscreen) document.exitFullscreen();
-            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-            else if (document.msExitFullscreen) document.msExitFullscreen();
-        }
+function toggleFullscreen() {
+    const el = document.getElementById('playerArea');
+    if (!document.fullscreenElement) {
+        if (el.requestFullscreen) el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } else {
+        if (document.exitFullscreen) document.exitFullscreen();
     }
+    showControls();
+}
 
-    function openPlayer(idx) {
-        if (!videoList[idx]) return;
-        currentIdx = idx;
-        const vId = videoList[idx].snippet.resourceId.videoId;
-        document.getElementById('playerBox').style.display = 'block';
-        document.getElementById('bufferingScreen').style.display = 'flex';
-        document.getElementById('ytWrapper').style.opacity = '0'; 
-        document.body.classList.add('player-open');
-        if (player?.loadVideoById) player.loadVideoById(vId);
-        document.getElementById('playerArea').classList.add('show-ui');
-    }
+function closePlayer() {
+    document.getElementById('playerBox').style.display = 'none';
+    document.body.classList.remove('player-open');
+    if (player?.stopVideo) player.stopVideo();
+}
 
-    function playPause() {
-        if (!player) return;
-        player.getPlayerState() === YT.PlayerState.PLAYING ? player.pauseVideo() : player.playVideo();
-    }
+function formatTime(s) {
+    const m = Math.floor(s/60), sc = Math.floor(s%60);
+    return `${m}:${sc < 10 ? '0' : ''}${sc}`;
+}
 
-    function skip(s) {
-        if (player?.getCurrentTime) player.seekTo(player.getCurrentTime() + s, true);
-    }
+function seek(e) {
+    if (!player?.getDuration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    player.seekTo(((e.clientX - rect.left) / rect.width) * player.getDuration(), true);
+    showControls();
+}
 
-    function closePlayer() {
-        document.getElementById('playerBox').style.display = 'none';
-        document.body.classList.remove('player-open');
-        if (player?.stopVideo) player.stopVideo();
-    }
+function updateDramaPagination() {
+    const prev = document.getElementById('dramaPrevBtn'), next = document.getElementById('dramaNextBtn');
+    if(prev) prev.disabled = dramaCurrentPage === 1;
+    if(next) next.disabled = dramaCurrentPage === dramaTotalPages;
+    const info = document.getElementById('dramaPageInfo');
+    if(info) info.textContent = `Page ${dramaCurrentPage} of ${dramaTotalPages}`;
+    const pNav = document.getElementById('dramaPagination');
+    if(pNav) pNav.style.display = DRAMAS.length > ITEMS_PER_PAGE ? 'flex' : 'none';
+}
 
-    function updateProgressBar() {
-        if (player?.getCurrentTime && player?.getDuration) {
-            const curr = player.getCurrentTime(), dur = player.getDuration();
-            if (dur > 0) {
-                document.getElementById('pFill').style.width = (curr/dur*100) + '%';
-                document.getElementById('currTime').innerText = formatTime(curr);
-                document.getElementById('totalTime').innerText = formatTime(dur);
-            }
-        }
-    }
+function updateEpisodePagination() {
+    const prev = document.getElementById('episodePrevBtn'), next = document.getElementById('episodeNextBtn');
+    if(prev) prev.disabled = episodeCurrentPage === 1;
+    if(next) next.disabled = episodeCurrentPage === episodeTotalPages;
+    const info = document.getElementById('episodePageInfo');
+    if(info) info.textContent = `Page ${episodeCurrentPage} of ${episodeTotalPages}`;
+    const pNav = document.getElementById('episodePagination');
+    if(pNav) pNav.style.display = videoList.length > ITEMS_PER_PAGE ? 'flex' : 'none';
+}
 
-    function formatTime(s) {
-        const m = Math.floor(s/60), sc = Math.floor(s%60);
-        return `${m}:${sc < 10 ? '0' : ''}${sc}`;
-    }
+function changeDramaPage(dir) { 
+    dramaCurrentPage += dir; 
+    showFullScreenLoader('Loading More Dramas');
+    setTimeout(() => { initializeDramas(); hideFullScreenLoader(); window.scrollTo(0,0); }, 800);
+}
 
-    function seek(e) {
-        if (!player?.getDuration) return;
-        const rect = e.currentTarget.getBoundingClientRect();
-        player.seekTo(((e.clientX - rect.left) / rect.width) * player.getDuration(), true);
-    }
+function changeEpisodePage(dir) { 
+    showFullScreenLoader('Loading More Episodes');
+    setTimeout(() => { displayEpisodes(episodeCurrentPage + dir); hideFullScreenLoader(); window.scrollTo(0,0); }, 800);
+}
 
-    function sortEpisodes(list) {
-        if (list.length < 2) return list;
-        const getNum = (t) => { const m = t.match(/\d+/); return m ? parseInt(m[0]) : 0; };
-        if (getNum(list[0].snippet.title) > getNum(list[list.length-1].snippet.title)) return list.reverse();
-        return list;
-    }
+const playerArea = document.getElementById('playerArea');
+if(playerArea) playerArea.addEventListener('click', toggleControls);
 
-    function goBackToDramas() {
-        document.getElementById('episodesContainer').style.display = 'none';
-        document.getElementById('backButton').style.display = 'none';
-        document.getElementById('dramaSection').style.display = 'block';
-        closePlayer();
-        updatePageTitle();
-        isInEpisodesView = false;
-        history.pushState({ page: 'dramas' }, '', window.location.pathname);
-    }
+document.addEventListener('keydown', (e) => {
+    if (document.getElementById('playerBox').style.display === 'none') return;
+    if (e.key === ' ') { e.preventDefault(); playPause(); }
+    if (e.key === 'ArrowLeft') skip(-10);
+    if (e.key === 'ArrowRight') skip(10);
+    if (e.key === 'Escape') closePlayer();
+});
 
-    function updateDramaPagination() {
-        const prev = document.getElementById('dramaPrevBtn'), next = document.getElementById('dramaNextBtn');
-        if(prev) prev.disabled = dramaCurrentPage === 1;
-        if(next) next.disabled = dramaCurrentPage === dramaTotalPages;
-    }
-
-    function changeDramaPage(dir) { 
-        dramaCurrentPage += dir; 
-        showFullScreenLoader('Loading Dramas');
-        setTimeout(() => { initializeDramas(); hideFullScreenLoader(); window.scrollTo(0,0); }, 800);
-    }
-
-    function updateEpisodePagination() {
-        const pagination = document.getElementById('episodePagination');
-        if (videoList.length > EPISODES_PER_PAGE) {
-            pagination.style.display = 'flex';
-            const next = document.getElementById('episodeNextBtn');
-            const isLastPage = episodeCurrentPage === episodeTotalPages;
-            if (next) {
-                next.style.display = isLastPage ? 'none' : 'inline-flex';
-                const remaining = Math.min(EPISODES_PER_PAGE, videoList.length - (episodeCurrentPage * EPISODES_PER_PAGE));
-                next.innerHTML = `Load More Episodes(${remaining}) →`;
-            }
-        } else { pagination.style.display = 'none'; }
-    }
-
-    function changeEpisodePage(dir) { 
-        episodeCurrentPage += dir;
-        displayEpisodes(episodeCurrentPage);
-        window.scrollTo(0,0);
-    }
-
-    document.addEventListener('keydown', (e) => {
-        if (document.getElementById('playerBox').style.display === 'none') return;
-        if (e.key === ' ') { e.preventDefault(); playPause(); }
-        if (e.key === 'ArrowLeft') skip(-10);
-        if (e.key === 'ArrowRight') skip(10);
-        if (e.key === 'f') toggleFullscreen();
-        if (e.key === 'Escape') closePlayer();
+setInterval(() => {
+    const dots = document.querySelectorAll('.loading-dots');
+    dots.forEach(dot => {
+        const current = dot.textContent;
+        if (current === '...') dot.textContent = '';
+        else if (current === '..') dot.textContent = '...';
+        else if (current === '.') dot.textContent = '..';
+        else dot.textContent = '.';
     });
+}, 500);
 </script>
 </body>
 </html>
