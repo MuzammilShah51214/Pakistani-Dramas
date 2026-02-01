@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAN MAST MALANG - Premium Player</title>
+    <style>
+        :root {
+            --pink: #ff416c;
+            --neon-blue: #00f3ff;
+            --neon-purple: #bc00ff;
+            --neon-red: #ff0000;
+            --dark-bg: #000;
+            --header-height: 220px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--dark-bg); color: white; overflow-x: hidden; text-align: center;}
+
+        /* --- FIXED HERO SECTION --- */
+        .hero-poster {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: var(--header-height);
+            z-index: 1000; background: #000;
+            border-bottom: 2px solid var(--pink); overflow: hidden;
+        }
+
+        .hero-poster img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; opacity: 0.5; }
+
+        .poster-overlay {
+            position: absolute; inset: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.9));
+            display: flex; flex-direction: column; 
+            justify-content: flex-end; align-items: center;
+            padding-bottom: 20px; z-index: 2;
+        }
+
+        /* --- STYLISH RED BADGES --- */
+        .title-badge {
+            font-size: 0.6rem;
+            font-weight: bold;
+            color: white;
+            padding: 8px 25px;
+            border: 2px solid var(--neon-red);
+            border-radius: 50px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px var(--pink);
+            box-shadow: 0 0 15px var(--neon-red), inset 0 0 8px var(--neon-red);
+            margin-bottom: 15px;
+            animation: glowRed 1.5s ease-in-out infinite alternate;
+        }
+
+        .geo-badge {
+            font-size: 10px;
+            color: white;
+            padding: 4px 15px;
+            border: 1.5px solid var(--neon-red);
+            border-radius: 50px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 0 10px var(--neon-red);
+            animation: glowRed 1.5s ease-in-out infinite alternate-reverse;
+        }
+
+        @keyframes glowRed {
+            from { box-shadow: 0 0 5px var(--neon-red); transform: scale(1); }
+            to { box-shadow: 0 0 15px var(--neon-red), 0 0 20px #ff4d4d; transform: scale(1.02); }
+        }
+
+        /* --- FIXED PLAYER BOX --- */
+        .player-box {
+            display: none; position: fixed;
+            top: 0 !important; left: 0; 
+            width: 100%; height: var(--header-height) !important;
+            background: #000; z-index: 2000; 
+        }
+        
+        .player-content { width: 100%; height: 100%; position: relative; overflow: hidden; }
+        
+        /* --- NEON LOADER --- */
+        #bufferingScreen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 100;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .neon-loader {
+            width: 50px; height: 50px;
+            border: 4px solid transparent; border-top: 4px solid var(--pink);
+            border-bottom: 4px solid var(--neon-blue);
+            border-radius: 50%; animation: spinNeon 1s linear infinite;
+        }
+        @keyframes spinNeon { to { transform: rotate(360deg); } }
+
+        /* --- CENTER CONTROLS --- */
+        .center-controls {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex; gap: 80px; 
+            z-index: 160; opacity: 0; transition: 0.3s;
+            pointer-events: none;
+        }
+        .player-content.show-ui .center-controls { opacity: 1; pointer-events: auto; }
+        
+        .skip-btn {
+            background: rgba(0,0,0,0.5); border: 1px solid var(--neon-blue);
+            color: white; width: 50px; height: 50px; border-radius: 50%;
+            cursor: pointer; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; font-size: 10px;
+        }
+
+        .yt-iframe-wrapper {
+            position: absolute; top: -50px; left: 0; width: 100%; height: calc(100% + 100px); 
+            z-index: 1; opacity: 0; transition: 0.5s;
+        }
+        .yt-iframe-wrapper.active { opacity: 1; }
+        #youtube-player { width: 100%; height: 100%; border:none; }
+
+        /* UI Controls */
+        .bottom-ui { 
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.9)); 
+            padding: 10px 15px; z-index: 150; opacity: 0; transition: 0.3s;
+        }
+        .player-content.show-ui .bottom-ui { opacity: 1; }
+        .p-bar { width: 100%; height: 5px; background: rgba(255,255,255,0.2); cursor: pointer; border-radius: 5px; margin-bottom: 8px; }
+        .p-fill { height: 100%; background: var(--pink); width: 0%; box-shadow: 0 0 8px var(--pink); }
+
+        .close-player-btn {
+            position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; 
+            border-radius: 50%; background: rgba(0,0,0,0.6); border: 1px solid var(--pink);
+            color: white; cursor: pointer; z-index: 200; opacity: 0;
+        }
+        .player-content.show-ui .close-player-btn { opacity: 1; }
+
+        /* Container */
+        .container { 
+            padding: 15px; 
+            max-width: 1100px; 
+            margin: calc(var(--header-height) + 20px) auto 0 auto; 
+        }
+        .section-title { font-size: 18px; border-left: 4px solid var(--pink); padding-left: 10px; text-align: left; margin: 15px 0; }
+        .episode-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+
+        .ep-card {
+            background: #111; border-radius: 10px; overflow: hidden;
+            border: 1px solid #333; position: relative; padding: 2px; cursor: pointer;
+        }
+        .ep-card.active {
+            border: none;
+            background: linear-gradient(45deg, var(--pink), var(--neon-blue), var(--neon-purple), var(--pink));
+            background-size: 400%; animation: neonFlow 3s infinite;
+        }
+        @keyframes neonFlow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        .ep-inner { background: #111; border-radius: 8px; overflow: hidden; height: 100%; }
+        .ep-upper img { width: 100%; aspect-ratio: 16/9; object-fit: cover; }
+        .ep-lower { padding: 8px; font-size: 12px; font-weight: bold; }
+
+        /* Loading and Error States */
+        .loading { text-align: center; padding: 30px; }
+        .error-message { color: var(--neon-red); padding: 20px; }
+        .retry-btn { 
+            background: var(--pink); color: white; border: none;
+            padding: 10px 20px; border-radius: 5px; cursor: pointer;
+            margin-top: 10px; font-weight: bold;
+        }
+
+        /* Pagination - Updated to show below episodes */
+        .pagination-container {
+            margin: 25px 0 15px 0;
+            width: 100%;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        .page-btn {
+            background: #222;
+            color: white;
+            border: 1px solid var(--pink);
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            min-width: 40px;
+            transition: all 0.3s ease;
+        }
+        .page-btn.active {
+            background: var(--pink);
+            font-weight: bold;
+            box-shadow: 0 0 10px var(--pink);
+        }
+        .page-btn:hover {
+            background: rgba(255, 65, 108, 0.5);
+            transform: translateY(-2px);
+        }
+        .pagination-info {
+            color: #888;
+            font-size: 14px;
+            margin-top: 10px;
+            text-align: center;
+        }
+        .pagination-nav {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .nav-btn {
+            background: #333;
+            color: white;
+            border: 1px solid var(--neon-blue);
+            padding: 8px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        .nav-btn:hover {
+            background: rgba(0, 243, 255, 0.2);
+            box-shadow: 0 0 10px var(--neon-blue);
+        }
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-color: #555;
+        }
+
+        @media (min-width: 768px) { 
+            .episode-grid { grid-template-columns: repeat(4, 1fr); }
+            :root { --header-height: 450px; }
+            .title-badge { font-size: 2.5rem; padding: 10px 40px; }
+            .skip-btn { width: 60px; height: 60px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="hero-poster">
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ5LJTX33J-G19bCgKh_YO-Qihoby-ZOWK11-CX4RE5OL5jP030rXG2HSHe&s=10">
+        <div class="poster-overlay">
+            
+            <div class="title-badge" id="seriesTitle">Loading...</div>
+        </div>
+    </div>
+
+    <div class="player-box" id="playerBox">
+        <div class="player-content" id="playerArea" onclick="handleUIInteraction()">
+            
+            <div id="bufferingScreen">
+                <div class="neon-loader"></div>
+                <div class="loading-text">BUFFERING...</div>
+            </div>
+
+            <div class="center-controls">
+                <button class="skip-btn" onclick="skip(-10); event.stopPropagation();">
+                    <span>↺</span>10s
+                </button>
+                <button class="skip-btn" onclick="skip(10); event.stopPropagation();">
+                    <span>↻</span>10s
+                </button>
+            </div>
+
+            <div class="yt-iframe-wrapper" id="ytWrapper">
+                <div id="youtube-player"></div>
+            </div>
+
+            <button class="close-player-btn" onclick="closePlayer(event)">✕</button>
+
+            <div style="position:absolute; inset:0; z-index:5;" id="touchLayer"></div>
+
+            <div class="bottom-ui" onclick="event.stopPropagation()">
+                <div class="p-bar" onclick="seek(event)">
+                    <div class="p-fill" id="pFill"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; gap:15px; align-items:center;">
+                        <button style="background:none; border:none; color:white; font-size:18px;" onclick="prevEp()">⏮</button>
+                        <button style="background:none; border:none; color:white; font-size:22px;" onclick="playPause()" id="playIcon">||</button>
+                        <button style="background:none; border:none; color:white; font-size:18px;" onclick="nextEp()">⏭</button>
+                        <span style="font-size:11px;"><span id="currTime">0:00</span> / <span id="totalTime">0:00</span></span>
+                    </div>
+                    <button style="background:none; border:none; color:white; font-size:18px;" onclick="toggleFullscreen()">⛶</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2 class="section-title">Select Episode</h2>
+        <div class="episode-grid" id="episodeGrid">
+            <div class="loading">Loading episodes...</div>
+        </div>
+        
+        <!-- Pagination will be inserted here -->
+        <div class="pagination-container" id="paginationContainer"></div>
+        
+        <div style="margin-top:30px; color:#555; font-size:12px;">Powered By: 🩷~𝑺𝒚𝒆𝒅 𝑴𝒖𝒛𝒂𝒎𝒎𝒊𝒍 𝑺𝒉𝒂𝒉~🩷</div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_KEY = 'AIzaSyACxqw-OnpXUZFv7ym_PTiH4QkdX_KRsN4';
+        const PLAYLIST_ID = 'PLI1u6sZ1_Fp6FfnAgoTqhSklDiOWY8mUW&si=fAhlTV7TFBdexNY4';
+        const DEFAULT_THUMBNAIL = "https://images.pexels.com/photos/713149/pexels-photo-713149.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1";
+        
+        // Global variables
+        let player, currentIdx = 0, hideTimeout;
+        let videoList = []; // Array to store fetched videos
+        let playlistData = null; // Store playlist data
+        let currentPage = 1;
+        const episodesPerPage = 20; // Episodes per page
+
+        // Fetch ALL videos from YouTube Data API with pagination
+        async function fetchAllVideosFromPlaylist() {
+            let allVideos = [];
+            let nextPageToken = null;
+            
+            try {
+                do {
+                    const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${PLAYLIST_ID}&key=${API_KEY}${nextPageToken ? `&pageToken=${nextPageToken}` : ''}`;
+                    
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch playlist: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // Add videos to array
+                    if (data.items) {
+                        allVideos = allVideos.concat(data.items);
+                    }
+                    
+                    // Get next page token
+                    nextPageToken = data.nextPageToken;
+                    
+                } while (nextPageToken); // Continue until no more pages
+                
+                console.log(`Fetched ${allVideos.length} videos from playlist`);
+                return allVideos;
+            } catch (error) {
+                console.error('Error fetching playlist:', error);
+                throw error;
+            }
+        }
+
+        // Fetch playlist details
+        async function fetchPlaylistDetails() {
+            try {
+                const response = await fetch(
+                    `https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${PLAYLIST_ID}&key=${API_KEY}`
+                );
+                
+                if (!response.ok) throw new Error('Failed to fetch playlist details');
+                
+                const data = await response.json();
+                return data.items[0] || null;
+            } catch (error) {
+                console.error('Error fetching playlist details:', error);
+                return null;
+            }
+        }
+
+        // Render episodes dynamically with pagination - CORRECTED ORDER
+        async function renderEpisodes(page = 1) {
+            const grid = document.getElementById('episodeGrid');
+            const paginationContainer = document.getElementById('paginationContainer');
+            
+            try {
+                // Show loading state
+                grid.innerHTML = '<div class="loading">Fetching All Episodes...</div>';
+                paginationContainer.innerHTML = '';
+                
+                // Fetch playlist details
+                playlistData = await fetchPlaylistDetails();
+                if (playlistData) {
+                    document.getElementById('seriesTitle').textContent = playlistData.snippet.title || 'YouTube Series';
+                }
+                
+                // Fetch ALL videos
+                const playlistItems = await fetchAllVideosFromPlaylist();
+                
+                // CORRECT: DO NOT reverse the order - keep original YouTube order
+                // YouTube returns videos in the order they were added to playlist
+                // Typically Episode 1 first, Episode 70 last
+                
+                videoList = playlistItems.map((item, index) => ({
+                    id: item.snippet.resourceId.videoId,
+                    title: item.snippet.title,
+                    thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || DEFAULT_THUMBNAIL,
+                    description: item.snippet.description,
+                    publishedAt: item.snippet.publishedAt,
+                    originalIndex: index // Keep original index for reference
+                }));
+                
+                // Check if we got videos
+                if (videoList.length === 0) {
+                    grid.innerHTML = `
+                        <div class="error-message">
+                            No videos found in playlist. Please check the playlist ID.
+                            <br><button class="retry-btn" onclick="renderEpisodes()">Retry</button>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Update series title with video count
+                if (playlistData) {
+                    document.getElementById('seriesTitle').textContent = 
+                        `${playlistData.snippet.title} (${videoList.length} Episodes)`;
+                }
+                
+                // Calculate pagination
+                const totalPages = Math.ceil(videoList.length / episodesPerPage);
+                currentPage = Math.min(page, totalPages);
+                
+                // Calculate start and end index for current page
+                const startIndex = (currentPage - 1) * episodesPerPage;
+                const endIndex = Math.min(startIndex + episodesPerPage, videoList.length);
+                const currentPageVideos = videoList.slice(startIndex, endIndex);
+                
+                // Render video cards for current page
+                grid.innerHTML = '';
+                currentPageVideos.forEach((video, index) => {
+                    const globalIndex = startIndex + index;
+                    
+                    // CORRECT: Episode numbers should be sequential from 1 to 70
+                    // Episode 1 = index 0, Episode 2 = index 1, etc.
+                    const episodeNumber = globalIndex + 1;
+                    
+                    const episodeText = video.title.length > 30 ? 
+                        video.title.substring(0, 30) + '...' : video.title;
+                    
+                    grid.innerHTML += `
+                        <div class="ep-card" id="ep-${globalIndex}" onclick="openPlayer(${globalIndex})">
+                            <div class="ep-inner">
+                                <div class="ep-upper">
+                                    <img src="${video.thumbnail}" alt="${video.title}" 
+                                         onerror="this.src='${DEFAULT_THUMBNAIL}'">
+                                </div>
+                                <div class="ep-lower" title="${video.title}">
+                                    Episode ${episodeNumber}: ${episodeText}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                // Create pagination controls
+                renderPaginationControls(totalPages);
+                
+            } catch (error) {
+                console.error('Error rendering episodes:', error);
+                grid.innerHTML = `
+                    <div class="error-message">
+                        Error loading episodes: ${error.message}
+                        <br><button class="retry-btn" onclick="renderEpisodes()">Retry</button>
+                    </div>
+                `;
+            }
+        }
+
+        // Render pagination controls
+        function renderPaginationControls(totalPages) {
+            const paginationContainer = document.getElementById('paginationContainer');
+            
+            if (totalPages <= 1) {
+                paginationContainer.innerHTML = '';
+                return;
+            }
+            
+            let paginationHTML = `
+                <div class="pagination-info">
+                    Showing page ${currentPage} of ${totalPages} • 
+                    ${videoList.length} total episodes
+                </div>
+                <div class="pagination">
+            `;
+            
+            // Show first few pages
+            const maxPagesToShow = 7;
+            let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+            let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+            
+            // Adjust if we're near the end
+            if (endPage - startPage + 1 < maxPagesToShow) {
+                startPage = Math.max(1, endPage - maxPagesToShow + 1);
+            }
+            
+            // First page button
+            if (startPage > 1) {
+                paginationHTML += `<button class="page-btn" onclick="goToPage(1)">1</button>`;
+                if (startPage > 2) {
+                    paginationHTML += `<span style="color:#888; align-self:center;">...</span>`;
+                }
+            }
+            
+            // Page buttons
+            for (let i = startPage; i <= endPage; i++) {
+                paginationHTML += `
+                    <button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">
+                        ${i}
+                    </button>
+                `;
+            }
+            
+            // Last page button
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    paginationHTML += `<span style="color:#888; align-self:center;">...</span>`;
+                }
+                paginationHTML += `<button class="page-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+            }
+            
+            paginationHTML += `</div>`;
+            
+            // Navigation buttons
+            paginationHTML += `
+                <div class="pagination-nav">
+                    <button class="nav-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                        ← Previous
+                    </button>
+                    <button class="nav-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+                        Next →
+                    </button>
+                </div>
+            `;
+            
+            paginationContainer.innerHTML = paginationHTML;
+        }
+
+        // Go to specific page
+        function goToPage(page) {
+            if (page < 1 || page > Math.ceil(videoList.length / episodesPerPage)) {
+                return;
+            }
+            renderEpisodes(page);
+            // Scroll to top of episodes
+            document.querySelector('.container').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Initialize on page load
+        window.onload = async () => {
+            await renderEpisodes();
+            
+            // Load YouTube IFrame API
+            const tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            document.head.appendChild(tag);
+        };
+
+        // YouTube IFrame API ready callback
+        function onYouTubeIframeAPIReady() {
+            if (!player) {
+                player = new YT.Player('youtube-player', {
+                    playerVars: { 
+                        'autoplay': 1, 
+                        'controls': 0, 
+                        'modestbranding': 1, 
+                        'rel': 0, 
+                        'playsinline': 1,
+                        'origin': window.location.origin
+                    },
+                    events: { 
+                        'onStateChange': onStateChange,
+                        'onError': onPlayerError,
+                        'onReady': onPlayerReady
+                    }
+                });
+                setInterval(updateProgress, 500);
+            }
+        }
+
+        // Player error handler
+        function onPlayerError(event) {
+            console.error('YouTube Player Error:', event.data);
+            document.getElementById('bufferingScreen').innerHTML = `
+                <div style="text-align:center;">
+                    <div style="color:var(--neon-red); font-size:24px; margin-bottom:10px;">⚠️</div>
+                    <div>Video playback error. Trying next episode...</div>
+                </div>
+            `;
+            
+            // Try next episode after 3 seconds
+            setTimeout(() => {
+                if (currentIdx < videoList.length - 1) {
+                    openPlayer(currentIdx + 1);
+                }
+            }, 3000);
+        }
+
+        // Player ready handler
+        function onPlayerReady(event) {
+            console.log('YouTube Player is ready');
+        }
+
+        // Open player with specific video
+        function openPlayer(i) {
+            if (!videoList[i]) {
+                console.error('Video not found at index:', i);
+                return;
+            }
+            
+            // Update UI
+            document.querySelectorAll('.ep-card').forEach(el => el.classList.remove('active'));
+            const card = document.getElementById('ep-' + i);
+            if (card) card.classList.add('active');
+            
+            currentIdx = i;
+            
+            // Show player and loading screen
+            document.getElementById('playerBox').style.display = 'block';
+            document.getElementById('bufferingScreen').style.display = 'flex';
+            document.getElementById('ytWrapper').classList.remove('active');
+            
+            // Load the specific video
+            if (player && player.loadVideoById) {
+                player.loadVideoById(videoList[i].id);
+            }
+            
+            // Show UI controls
+            const el = document.getElementById('playerArea');
+            el.classList.add('show-ui');
+            resetHideTimer();
+        }
+
+        // Skip forward/backward
+        function skip(seconds) {
+            if (player && player.getCurrentTime) {
+                let currentTime = player.getCurrentTime();
+                player.seekTo(currentTime + seconds, true);
+                resetHideTimer(); 
+            }
+        }
+
+        // Handle UI visibility
+        function handleUIInteraction() {
+            const el = document.getElementById('playerArea');
+            clearTimeout(hideTimeout);
+            if (el.classList.contains('show-ui')) {
+                el.classList.remove('show-ui');
+            } else {
+                el.classList.add('show-ui');
+                resetHideTimer();
+            }
+        }
+
+        // Reset UI hide timer
+        function resetHideTimer() {
+            clearTimeout(hideTimeout);
+            hideTimeout = setTimeout(() => { 
+                document.getElementById('playerArea').classList.remove('show-ui'); 
+            }, 3000);
+        }
+
+        // Player state change handler
+        function onStateChange(event) {
+            const loader = document.getElementById('bufferingScreen');
+            
+            switch(event.data) {
+                case YT.PlayerState.BUFFERING:
+                    loader.style.display = 'flex';
+                    break;
+                    
+                case YT.PlayerState.PLAYING:
+                    loader.style.display = 'none';
+                    document.getElementById('ytWrapper').classList.add('active');
+                    document.getElementById('playIcon').innerText = '||';
+                    break;
+                    
+                case YT.PlayerState.PAUSED:
+                    document.getElementById('playIcon').innerText = '▶';
+                    break;
+                    
+                case YT.PlayerState.ENDED:
+                    // Auto-play next episode when current ends (Episode 1 → Episode 2)
+                    // In correct order: Episode 1 (index 0) ends, play Episode 2 (index 1)
+                    if (currentIdx < videoList.length - 1) {
+                        setTimeout(() => openPlayer(currentIdx + 1), 2000);
+                    }
+                    break;
+            }
+        }
+
+        // Play/Pause toggle
+        function playPause() {
+            if (!player) return;
+            
+            if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                player.pauseVideo();
+            } else {
+                player.playVideo();
+            }
+            resetHideTimer();
+        }
+
+        // Close player
+        function closePlayer(event) {
+            if(event) event.stopPropagation();
+            document.getElementById('playerBox').style.display = 'none';
+            if (player && player.stopVideo) {
+                player.stopVideo();
+            }
+        }
+
+        // Update progress bar
+        function updateProgress() {
+            if (player && player.getCurrentTime && player.getDuration) {
+                const curr = player.getCurrentTime();
+                const dur = player.getDuration();
+                
+                if (dur > 0) {
+                    document.getElementById('pFill').style.width = (curr/dur*100) + '%';
+                    document.getElementById('currTime').innerText = formatTime(curr);
+                    document.getElementById('totalTime').innerText = formatTime(dur);
+                }
+            }
+        }
+
+        // Format time (MM:SS)
+        function formatTime(seconds) { 
+            if (!seconds || isNaN(seconds)) return "0:00";
+            
+            const m = Math.floor(seconds / 60);
+            const sec = Math.floor(seconds % 60); 
+            return `${m}:${sec < 10 ? '0' : ''}${sec}`; 
+        }
+
+        // Seek to position
+        function seek(e) {
+            if (!player || !player.getDuration) return;
+            
+            const rect = e.currentTarget.getBoundingClientRect();
+            const seekTo = ((e.clientX - rect.left) / rect.width) * player.getDuration();
+            player.seekTo(seekTo, true);
+            resetHideTimer();
+        }
+
+        // Next episode (correct order: Episode 1 → Episode 2 → Episode 3...)
+        function nextEp() { 
+            if (currentIdx < videoList.length - 1) {
+                openPlayer(currentIdx + 1);
+            }
+        }
+        
+        // Previous episode (correct order: Episode 3 → Episode 2 → Episode 1)
+        function prevEp() { 
+            if (currentIdx > 0) {
+                openPlayer(currentIdx - 1);
+            }
+        }
+
+        // Toggle fullscreen
+        function toggleFullscreen() {
+            const el = document.getElementById('playerArea');
+            if (!document.fullscreenElement) {
+                el.requestFullscreen().catch(err => {
+                    console.error('Error attempting to enable fullscreen:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (document.getElementById('playerBox').style.display === 'none') return;
+            
+            switch(e.key) {
+                case ' ':
+                case 'k':
+                    e.preventDefault();
+                    playPause();
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    skip(-10);
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    skip(10);
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    if (player) player.setVolume(Math.min(player.getVolume() + 10, 100));
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    if (player) player.setVolume(Math.max(player.getVolume() - 10, 0));
+                    break;
+                case 'f':
+                    e.preventDefault();
+                    toggleFullscreen();
+                    break;
+                case 'Escape':
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    }
+                    break;
+            }
+        });
+    </script>
+</body>
+</html>
